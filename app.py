@@ -30,22 +30,12 @@ st.markdown("""
         background: none !important;
         color: #333; font-size: 1.06rem;
         border-left: 3px solid #d32c2f;
-        margin-bottom: 24px; padding-left: 14px;
+        margin-bottom: 18px; padding-left: 14px;
         font-family: Segoe UI, Arial;
     }
     .logo-img {display: block; margin-left: auto; margin-right: auto;}
     .sidebar-content {font-size: 1rem;}
     .stTextInput > div > div > input {font-size: 1.1rem;}
-    .chatbox-scroll {
-        height: 55vh;
-        max-height: 63vh;
-        overflow-y: auto;
-        padding-right: 10px;
-        border-radius: 8px;
-        background: #f9f9f9;
-        margin-bottom: 16px;
-        box-shadow: 0 3px 8px 0 #ededed88;
-    }
     .btn-clear button {
         background-color: #ececec !important;
         color: #333 !important;
@@ -72,7 +62,6 @@ st.markdown('<div class="custom-title">🤖 Asesor Redondos IA</div>', unsafe_al
 st.markdown('<div style="font-size:1.17rem; color:#b30f21; font-weight:500; margin-bottom: 0.4rem;">Tu asistente IA para soluciones rápidas</div>', unsafe_allow_html=True)
 st.markdown("---")
 
-# ---- HISTORIAL ----
 if "historial" not in st.session_state:
     st.session_state["historial"] = []
 
@@ -89,7 +78,7 @@ with st.sidebar:
     st.write("Creado por Heidi + ChatGPT 😊")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ---- CARGA Y PREPARACIÓN (solo si hay archivos y API Key) ----
+# ---- CARGA Y PREPARACIÓN ----
 if uploaded_files and openai_api_key:
     os.environ["OPENAI_API_KEY"] = openai_api_key
 
@@ -99,7 +88,6 @@ if uploaded_files and openai_api_key:
         with open(temp_path, "wb") as f:
             f.write(uploaded_file.read())
 
-        # Detecta tipo de archivo y usa el loader adecuado
         if uploaded_file.name.endswith(".pdf"):
             loader = PyPDFLoader(temp_path)
             pages = loader.load()
@@ -112,9 +100,8 @@ if uploaded_files and openai_api_key:
         else:
             pages = []
         all_documents.extend(pages)
-        os.remove(temp_path)  # Limpia archivo temporal
+        os.remove(temp_path)
 
-    # Chunking y Embeddings
     splitter = RecursiveCharacterTextSplitter(chunk_size=900, chunk_overlap=120)
     documents = splitter.split_documents(all_documents)
     embeddings = OpenAIEmbeddings()
@@ -128,42 +115,39 @@ if uploaded_files and openai_api_key:
 else:
     qa_chain = None
 
-# ---- SIEMPRE muestra la caja y el historial, y deshabilita si no está listo ----
-
 ready = bool(uploaded_files and openai_api_key and qa_chain)
 
 st.success("¡Listo! Haz tus preguntas 👇" if ready else "🔹 Sube al menos un archivo (PDF, Word, PPTX) y coloca tu API Key para comenzar.")
 
-# ---- CAJA DE PREGUNTAS SIEMPRE ----
-with st.form("pregunta_form", clear_on_submit=True):
-    pregunta = st.text_input(
-        "Pregunta al documento:",
-        key="user_pregunta",
-        label_visibility="collapsed",
-        placeholder="Escribe tu pregunta...",
-        disabled=not ready
-    )
-    enviar = st.form_submit_button("OK", disabled=not ready)
-    if enviar and pregunta.strip() != "" and ready:
-        respuesta = qa_chain(pregunta)
-        st.session_state["historial"].append({
-            "pregunta": pregunta,
-            "respuesta": respuesta['result']
-        })
-        st.rerun()  # Refresca para mostrar la respuesta de inmediato
-
-# ---- HISTORIAL DE CHAT DEBAJO ----
-st.markdown('<div class="chatbox-scroll">', unsafe_allow_html=True)
-if st.session_state["historial"]:
-    for h in reversed(st.session_state["historial"]):
-        st.markdown(f'<div class="chat-user">Tú: {h["pregunta"]}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="chat-bot"><b>Asesor Redondos IA:</b> {h["respuesta"]}</div>', unsafe_allow_html=True)
-else:
-    st.markdown('<div style="color:#888; font-size:1rem; margin-top:40px;">Aquí aparecerán tus preguntas y respuestas.</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- Botón de limpiar historial debajo del chat ---
+# --------- TODA LA INTERFAZ EN UN SOLO BLOQUE CENTRAL ---------
 with st.container():
+    # CAJA DE PREGUNTAS
+    with st.form("pregunta_form", clear_on_submit=True):
+        pregunta = st.text_input(
+            "Pregunta al documento:",
+            key="user_pregunta",
+            label_visibility="collapsed",
+            placeholder="Escribe tu pregunta...",
+            disabled=not ready
+        )
+        enviar = st.form_submit_button("OK", disabled=not ready)
+        if enviar and pregunta.strip() != "" and ready:
+            respuesta = qa_chain(pregunta)
+            st.session_state["historial"].append({
+                "pregunta": pregunta,
+                "respuesta": respuesta['result']
+            })
+            st.rerun()  # Refresca para mostrar la respuesta de inmediato
+
+    # HISTORIAL DE CHAT JUSTO DEBAJO (sin altura fija, crece naturalmente)
+    if st.session_state["historial"]:
+        for h in reversed(st.session_state["historial"]):
+            st.markdown(f'<div class="chat-user">Tú: {h["pregunta"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="chat-bot"><b>Asesor Redondos IA:</b> {h["respuesta"]}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div style="color:#888; font-size:1rem; margin-top:30px;">Aquí aparecerán tus preguntas y respuestas.</div>', unsafe_allow_html=True)
+
+    # Botón de limpiar historial debajo del chat
     st.markdown('<div class="btn-clear">', unsafe_allow_html=True)
     if st.button("🧹 Borrar historial de chat", disabled=not ready):
         st.session_state["historial"] = []
