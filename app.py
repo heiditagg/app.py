@@ -97,4 +97,64 @@ if uploaded_files and openai_api_key:
     for uploaded_file in uploaded_files:
         temp_path = f"temp_{uploaded_file.name}"
         with open(temp_path, "wb") as f:
-            f.write(uploaded_file._
+            f.write(uploaded_file.read())
+
+        # Detecta tipo de archivo y usa el loader adecuado
+        if uploaded_file.name.endswith(".pdf"):
+            loader = PyPDFLoader(temp_path)
+            pages = loader.load()
+        elif uploaded_file.name.endswith(".docx"):
+            loader = UnstructuredWordDocumentLoader(temp_path)
+            pages = loader.load()
+        elif uploaded_file.name.endswith(".pptx"):
+            loader = UnstructuredPowerPointLoader(temp_path)
+            pages = loader.load()
+        else:
+            pages = []
+        all_documents.extend(pages)
+        os.remove(temp_path)  # Limpia archivo temporal
+
+    # Chunking y Embeddings
+    splitter = RecursiveCharacterTextSplitter(chunk_size=900, chunk_overlap=120)
+    documents = splitter.split_documents(all_documents)
+    embeddings = OpenAIEmbeddings()
+    db = FAISS.from_documents(documents, embeddings)
+    llm = ChatOpenAI(model_name="gpt-4o", temperature=0.05)
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=llm,
+        retriever=db.as_retriever(),
+        return_source_documents=False
+    )
+    st.success("¡Listo! Haz tus preguntas 👇")
+
+    # ---- CAJA DE PREGUNTAS (arriba, no flotante) ----
+    with st.form("pregunta_form", clear_on_submit=True):
+        pregunta = st.text_input("Pregunta al documento:", key="user_pregunta", label_visibility="collapsed", placeholder="Escribe tu pregunta...")
+        enviar = st.form_submit_button("OK")
+        if enviar and pregunta.strip() != "":
+            respuesta = qa_chain(pregunta)
+            st.session_state["historial"].append({
+                "pregunta": pregunta,
+                "respuesta": respuesta['result']
+            })
+            st.rerun()  # Refresca para mostrar la respuesta de inmediato
+
+    # ---- HISTORIAL DE CHAT DEBAJO ----
+    st.markdown('<div class="chatbox-scroll">', unsafe_allow_html=True)
+    if st.session_state["historial"]:
+        for h in reversed(st.session_state["historial"]):
+            st.markdown(f'<div class="chat-user">Tú: {h["pregunta"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="chat-bot"><b>Asesor Redondos IA:</b> {h["respuesta"]}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div style="color:#888; font-size:1rem; margin-top:40px;">Aquí aparecerán tus preguntas y respuestas.</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- Botón de limpiar historial debajo del chat ---
+    with st.container():
+        st.markdown('<div class="btn-clear">', unsafe_allow_html=True)
+        if st.button("🧹 Borrar historial de chat"):
+            st.session_state["historial"] = []
+        st.markdown('</div>', unsafe_allow_html=True)
+
+else:
+    st.info("🔹 Sube al menos un archivo (PDF, Word, PPTX) y coloca tu API Key para comenzar.")
