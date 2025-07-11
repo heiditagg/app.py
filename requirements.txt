@@ -5,3 +5,5 @@ openai
 tiktoken
 faiss-cpu
 pypdf
+python-docx
+python-pptx
