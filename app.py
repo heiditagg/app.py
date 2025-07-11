@@ -42,7 +42,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---- LOGO Y TÍTULO ----
-st.image("logo_redondos.png", width=110, output_format='PNG', use_column_width=False, caption=None, channels="RGB", clamp=False)
+st.image("logo_redondos.png", width=110, output_format='PNG', caption=None, channels="RGB", clamp=False)
 st.markdown('<div class="custom-title">🤖 Chat Ejecutivo Redondos IA</div>', unsafe_allow_html=True)
 st.markdown("---")
 
