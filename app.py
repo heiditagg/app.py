@@ -8,7 +8,7 @@ from langchain.chains import RetrievalQA
 from langchain.chat_models import ChatOpenAI
 
 st.set_page_config(
-    page_title="Redondos SmartGPT",
+    page_title="Chat Ejecutivo Redondos IA",
     layout="wide",
     page_icon="🔴"
 )
@@ -84,7 +84,7 @@ st.markdown("""
 
 # ---- LOGO Y TÍTULO ----
 st.image("logo_redondos.png", width=110)
-st.markdown('<div class="custom-title">🤖 Redondos SmartGPT</div>', unsafe_allow_html=True)
+st.markdown('<div class="custom-title">🤖 Chat Ejecutivo Redondos IA</div>', unsafe_allow_html=True)
 st.markdown("---")
 
 # ---- HISTORIAL ----
@@ -162,14 +162,14 @@ if uploaded_files and openai_api_key:
                     "pregunta": pregunta,
                     "respuesta": respuesta['result']
                 })
+                st.rerun()  # Fuerza refresco inmediato para que veas la respuesta al instante
         st.markdown('</div>', unsafe_allow_html=True)
     # --- Botón de limpiar historial fuera del input fijo ---
     with st.container():
         st.markdown('<div class="btn-clear">', unsafe_allow_html=True)
-        if st.button("Borrar historial"):
+        if st.button("🧹 Borrar historial de chat"):
             st.session_state["historial"] = []
         st.markdown('</div>', unsafe_allow_html=True)
 
 else:
     st.info("🔹 Sube al menos un archivo (PDF, Word, PPTX) y coloca tu API Key para comenzar.")
-
