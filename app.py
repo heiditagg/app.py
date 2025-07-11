@@ -89,7 +89,7 @@ with st.sidebar:
     st.write("Creado por Heidi + ChatGPT 😊")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ---- PROCESAR LOS ARCHIVOS Y CREAR EL QA CHAIN ----
+# ---- CARGA Y PREPARACIÓN (solo si hay archivos y API Key) ----
 if uploaded_files and openai_api_key:
     os.environ["OPENAI_API_KEY"] = openai_api_key
 
@@ -125,36 +125,46 @@ if uploaded_files and openai_api_key:
         retriever=db.as_retriever(),
         return_source_documents=False
     )
-    st.success("¡Listo! Haz tus preguntas 👇")
-
-    # ---- CAJA DE PREGUNTAS (arriba, no flotante) ----
-    with st.form("pregunta_form", clear_on_submit=True):
-        pregunta = st.text_input("Pregunta al documento:", key="user_pregunta", label_visibility="collapsed", placeholder="Escribe tu pregunta...")
-        enviar = st.form_submit_button("OK")
-        if enviar and pregunta.strip() != "":
-            respuesta = qa_chain(pregunta)
-            st.session_state["historial"].append({
-                "pregunta": pregunta,
-                "respuesta": respuesta['result']
-            })
-            st.rerun()  # Refresca para mostrar la respuesta de inmediato
-
-    # ---- HISTORIAL DE CHAT DEBAJO ----
-    st.markdown('<div class="chatbox-scroll">', unsafe_allow_html=True)
-    if st.session_state["historial"]:
-        for h in reversed(st.session_state["historial"]):
-            st.markdown(f'<div class="chat-user">Tú: {h["pregunta"]}</div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="chat-bot"><b>Asesor Redondos IA:</b> {h["respuesta"]}</div>', unsafe_allow_html=True)
-    else:
-        st.markdown('<div style="color:#888; font-size:1rem; margin-top:40px;">Aquí aparecerán tus preguntas y respuestas.</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # --- Botón de limpiar historial debajo del chat ---
-    with st.container():
-        st.markdown('<div class="btn-clear">', unsafe_allow_html=True)
-        if st.button("🧹 Borrar historial de chat"):
-            st.session_state["historial"] = []
-        st.markdown('</div>', unsafe_allow_html=True)
-
 else:
-    st.info("🔹 Sube al menos un archivo (PDF, Word, PPTX) y coloca tu API Key para comenzar.")
+    qa_chain = None
+
+# ---- SIEMPRE muestra la caja y el historial, y deshabilita si no está listo ----
+
+ready = bool(uploaded_files and openai_api_key and qa_chain)
+
+st.success("¡Listo! Haz tus preguntas 👇" if ready else "🔹 Sube al menos un archivo (PDF, Word, PPTX) y coloca tu API Key para comenzar.")
+
+# ---- CAJA DE PREGUNTAS SIEMPRE ----
+with st.form("pregunta_form", clear_on_submit=True):
+    pregunta = st.text_input(
+        "Pregunta al documento:",
+        key="user_pregunta",
+        label_visibility="collapsed",
+        placeholder="Escribe tu pregunta...",
+        disabled=not ready
+    )
+    enviar = st.form_submit_button("OK", disabled=not ready)
+    if enviar and pregunta.strip() != "" and ready:
+        respuesta = qa_chain(pregunta)
+        st.session_state["historial"].append({
+            "pregunta": pregunta,
+            "respuesta": respuesta['result']
+        })
+        st.rerun()  # Refresca para mostrar la respuesta de inmediato
+
+# ---- HISTORIAL DE CHAT DEBAJO ----
+st.markdown('<div class="chatbox-scroll">', unsafe_allow_html=True)
+if st.session_state["historial"]:
+    for h in reversed(st.session_state["historial"]):
+        st.markdown(f'<div class="chat-user">Tú: {h["pregunta"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="chat-bot"><b>Asesor Redondos IA:</b> {h["respuesta"]}</div>', unsafe_allow_html=True)
+else:
+    st.markdown('<div style="color:#888; font-size:1rem; margin-top:40px;">Aquí aparecerán tus preguntas y respuestas.</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
+
+# --- Botón de limpiar historial debajo del chat ---
+with st.container():
+    st.markdown('<div class="btn-clear">', unsafe_allow_html=True)
+    if st.button("🧹 Borrar historial de chat", disabled=not ready):
+        st.session_state["historial"] = []
+    st.markdown('</div>', unsafe_allow_html=True)
