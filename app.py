@@ -7,9 +7,8 @@ from langchain.embeddings import OpenAIEmbeddings
 from langchain.chains import RetrievalQA
 from langchain.chat_models import ChatOpenAI
 
-# ---- CONFIGURACIÓN DE PÁGINA Y CSS EJECUTIVO ----
 st.set_page_config(
-    page_title="Chat Ejecutivo Redondos IA",
+    page_title="Redondos SmartGPT",
     layout="wide",
     page_icon="🔴"
 )
@@ -37,13 +36,55 @@ st.markdown("""
     .logo-img {display: block; margin-left: auto; margin-right: auto;}
     .sidebar-content {font-size: 1rem;}
     .stTextInput > div > div > input {font-size: 1.1rem;}
-    .stButton>button {font-size:1.01rem; background:#d32c2f; color:white; border-radius:7px;}
+    /* Caja de chat scrollable tipo ChatGPT */
+    .chatbox-scroll {
+        height: 50vh;
+        max-height: 62vh;
+        overflow-y: auto;
+        padding-right: 10px;
+        border-radius: 8px;
+        background: #f9f9f9;
+        margin-bottom: 18px;
+        box-shadow: 0 3px 8px 0 #ededed88;
+    }
+    .input-fixed {
+        position: fixed;
+        left: 390px;
+        right: 30px;
+        bottom: 24px;
+        background: #fff;
+        z-index: 100;
+        padding: 20px 18px 15px 15px;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px 0 #ececec;
+    }
+    @media (max-width: 900px) {
+      .input-fixed {left: 12vw; right:12vw;}
+      .chatbox-scroll {height: 35vh; max-height:40vh;}
+    }
+    .btn-clear button {
+        background-color: #ececec !important;
+        color: #333 !important;
+        border: none !important;
+        font-size: 0.95rem !important;
+        padding: 3px 13px !important;
+        border-radius: 6px !important;
+        box-shadow: none !important;
+        margin-bottom: 13px !important;
+        margin-top: 3px;
+        margin-left: 8px;
+        transition: background 0.17s;
+    }
+    .btn-clear button:hover {
+        background-color: #d3d3d3 !important;
+        color: #d32c2f !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # ---- LOGO Y TÍTULO ----
-st.image("logo_redondos.png", width=110, output_format='PNG', caption=None, channels="RGB", clamp=False)
-st.markdown('<div class="custom-title">🤖 Chat Ejecutivo Redondos IA</div>', unsafe_allow_html=True)
+st.image("logo_redondos.png", width=110)
+st.markdown('<div class="custom-title">🤖 Redondos SmartGPT</div>', unsafe_allow_html=True)
 st.markdown("---")
 
 # ---- HISTORIAL ----
@@ -97,30 +138,38 @@ if uploaded_files and openai_api_key:
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
         retriever=db.as_retriever(),
-        return_source_documents=False  # Cambia a True si quieres fuente
+        return_source_documents=False
     )
     st.success("¡Listo! Haz tus preguntas 👇")
 
-    # Entrada de pregunta
-    query = st.text_input("Pregunta al documento:", key="user_input")
-
-    if query:
-        respuesta = qa_chain(query)
-        st.session_state["historial"].append({
-            "pregunta": query,
-            "respuesta": respuesta['result']
-        })
-
-    # Botón limpiar historial
-    if st.button("🧹 Borrar historial de chat"):
-        st.session_state["historial"] = []
-
-    # Mostrando historial
+    # ---- CAJA DE CHAT Y INPUT FIJA ----
+    st.markdown('<div class="chatbox-scroll">', unsafe_allow_html=True)
     if st.session_state["historial"]:
-        st.markdown("### 🗂️ Historial de chat")
         for h in reversed(st.session_state["historial"]):
             st.markdown(f'<div class="chat-user">Tú: {h["pregunta"]}</div>', unsafe_allow_html=True)
             st.markdown(f'<div class="chat-bot"><b>Redondos IA:</b> {h["respuesta"]}</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # --- INPUT + BOTÓN OK FIJO ABAJO ---
+    with st.container():
+        st.markdown('<div class="input-fixed">', unsafe_allow_html=True)
+        with st.form("pregunta_form", clear_on_submit=True):
+            pregunta = st.text_input("Pregunta al documento:", key="user_pregunta", label_visibility="collapsed", placeholder="Escribe tu pregunta...")
+            enviar = st.form_submit_button("OK")
+            if enviar and pregunta.strip() != "":
+                respuesta = qa_chain(pregunta)
+                st.session_state["historial"].append({
+                    "pregunta": pregunta,
+                    "respuesta": respuesta['result']
+                })
+        st.markdown('</div>', unsafe_allow_html=True)
+    # --- Botón de limpiar historial fuera del input fijo ---
+    with st.container():
+        st.markdown('<div class="btn-clear">', unsafe_allow_html=True)
+        if st.button("Borrar historial"):
+            st.session_state["historial"] = []
+        st.markdown('</div>', unsafe_allow_html=True)
+
 else:
     st.info("🔹 Sube al menos un archivo (PDF, Word, PPTX) y coloca tu API Key para comenzar.")
 
